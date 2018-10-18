@@ -79,7 +79,176 @@ let insert key value tree =
     | Up2(n1, left, right) -> Node2(n1, left, right)
     | Up3(n1, n2, left, middle, right) -> Node3(n1, n2, left, middle, right)
 
-let delete key tree = tree
+type up_case = Single | Done
+
+let rec delete key tree =
+  let (_, t) = delete_aux key tree in
+  t
+and delete_aux key tree =
+  match tree with
+    | Leaf -> (Single, Leaf)
+    | Node2(n, l, r) ->
+      let (k, _) = n in
+      if key = k then
+        match r with
+          | Leaf -> (
+            match l with
+              | Leaf -> (Single, Leaf)
+              | Node2(nl, ll, lr) ->
+                let (prev, new_l) = find_prev_2 nl ll lr in
+                  collect_2_l prev new_l r
+              | Node3(nl1, nl2, ll, lm, lr) ->
+                let (prev, new_l) = find_prev_3 nl1 nl2 ll lm lr in
+                  collect_2_l prev new_l r
+          )
+          | Node2(nr, rl, rr) ->
+            let (prev, new_r) = find_prev_2 nr rl rr in
+              collect_2_r prev l new_r
+          | Node3(nr1, nr2, rl, rm, rr) ->
+            let (prev, new_r) = find_prev_3 nr1 nr2 rl rm rr in
+              collect_2_r prev l new_r
+      else if key < k then
+        collect_2_l n (delete_aux key l) r
+      else
+        collect_2_r n l (delete_aux key r)
+    | Node3(n1, n2, l, m, r) ->
+      let (k1, _) = n1 in
+      let (k2, _) = n2 in
+      if key < k1 then
+        collect_3_l n1 n2 (delete_aux key l) m r
+      else if key = k1 then
+        match l with
+          | Leaf -> (Done, Node2(n2, Leaf, Leaf))
+          | Node2(n1, l1, r1) ->
+            let (n_, t_) = find_prev_2 n1 l1 r1 in
+              collect_3_l n_ n2 t_ m l
+          | Node3(n1, n2, c1, c2, c3) ->
+            let (n_, t_) = find_prev_3 n1 n2 c1 c2 c3 in
+              collect_3_l n_ n2 t_ m l
+      else if key < k2 then
+        collect_3_m n1 n2 l (delete_aux key m) r
+      else if key = k2 then
+        match r with
+          | Leaf -> (Done, Node2(n1, Leaf, Leaf))
+          | Node2(n1, l1, r1) ->
+            let (n_, t_) = find_prev_2 n1 l1 r1 in
+              collect_3_r n1 n_ l m t_
+          | Node3(n1, n2, c1, c2, c3) ->
+            let (n_, t_) = find_prev_3 n1 n2 c1 c2 c3 in
+              collect_3_r n1 n_ l m t_
+      else
+        collect_3_r n1 n2 l m (delete_aux key r)
+and find_prev_2 n l r =
+  match l with
+    | Leaf -> (n, (Single, Leaf))
+    | Node2(n1, l1, r1) ->
+      let (n_, t_) = find_prev_2 n1 l1 r1 in
+      (n_, collect_2_l n t_ r)
+    | Node3(n1, n2, l1, m1, r1) ->
+      let (n_, t_) = find_prev_3 n1 n2 l1 m1 r1 in
+      (n_, collect_3_l n_ n2 t_ m1 r1)
+and find_prev_3 n1 n2 l m r =
+  match l with
+    | Leaf -> (n1, (Single, Node2(n2, Leaf, Leaf)))
+    | Node2(n1, l1, r1) ->
+      let (n_, t_) = find_prev_2 n1 l1 r1 in
+      (n_, collect_3_l n_ n2 t_ m r)
+    | Node3(n1, n2, l1, m1, r1) ->
+      let (n_, t_) = find_prev_3 n1 n2 l1 m1 r1 in
+      (n_, collect_3_l n_ n2 t_ m1 r1)
+and collect_2_l n (up_case, l) r =
+  match up_case with
+    | Done -> (Done, Node2(n, l , r))
+    | Single ->
+      match r with
+        | Leaf -> (Done, Node2(n, Leaf, Leaf))
+        | Node2(nr, rl, rr) ->
+          (Done, Node3(
+            n, nr,
+            l, rl, rr
+          ))
+        | Node3(nr1, nr2, rl, rm, rr) ->
+          (Done, Node2(
+            nr1,
+            Node2(n, l, rl),
+            Node2(nr2, rm, rr)
+          ))
+and collect_2_r n l (up_case, r) =
+  match up_case with
+    | Done -> (Done, Node2(n, l , r))
+    | Single ->
+      match l with
+        | Leaf -> (Done, Node2(n, Leaf, Leaf))
+        | Node2(nl, ll, lr) ->
+          (Done, Node3(
+            nl, n,
+            ll, lr, r
+          ))
+        | Node3(nl1, nl2, ll, lm, lr) ->
+          (Done, Node2(
+            nl2,
+            Node2(nl1, ll, lm),
+            Node2(n, lr, r)
+          ))
+and collect_3_l n1 n2 (up_case, l) m r =
+  match up_case with
+    | Done -> (Done, Node3(n1, n2, l, m, r))
+    | Single ->
+      (Done, (
+        match m with
+        | Leaf -> Node3(n1, n2, Leaf, Leaf, Leaf)
+        | Node2(nm, ml, mr) ->
+          Node2(
+            nm,
+            Node3(n1, nm, l, ml, mr),
+            r
+          )
+        | Node3(nm1, nm2, ml, mm, mr) ->
+          Node3(
+            nm1, n2,
+            Node2(n1, l, ml),
+            Node2(nm2, mm, mr),
+            r
+          )
+      ))
+and collect_3_m n1 n2 l (up_case, m) r =
+  match up_case with
+    | Done -> (Done, Node3(n1, n2, l, m, r))
+    | Single -> (Done, (
+      match l with
+        | Leaf -> Node3(n1, n2, l, m, r)
+        | Node2(nl, ll, lr) ->
+          Node2(n1,
+            Node3(nl, n1, ll, lr, m),
+            r
+          )
+        | Node3(nl1, nl2, ll, lm, lr) ->
+          Node3(nl2, n2,
+            Node2(nl1, ll, lm),
+            Node2(n1, lr, m),
+            r)
+    ))
+and collect_3_r n1 n2 l m (up_case, r) =
+  match up_case with
+    | Done -> (Done, Node3(n1, n2, l, m, r))
+    | Single ->
+      (Done, (
+        match m with
+        | Leaf -> Node3(n1, n2, Leaf, Leaf, Leaf)
+        | Node2(nm, ml, mr) ->
+          Node2(
+            n1,
+            l,
+            Node3(nm, n2, ml, mr, r)
+          )
+        | Node3(nm1, nm2, ml, mm, mr) ->
+          Node3(
+            n1, nm2,
+            l,
+            Node2(nm1, ml, mm),
+            Node2(n2, mr, r)
+          )
+      ))
 
 let rec lookup key tree =
   match tree with
@@ -100,44 +269,48 @@ let member key tree =
     | None -> false
     | Some v -> true
 
-let from_int_list list =
-  let mapper tree v = insert v v tree in
-    List.fold_left mapper Leaf list
-
-let checkBalanced tree =
-  let rec _loop tree path_len collect_list =
-    let nextPathLen = path_len + 1 in
-      match tree with
-        | Leaf -> (path_len + 1) :: collect_list
-        | Node2(n1, c1, c2) ->
-          List.append (_loop c1 nextPathLen collect_list) (_loop c2 nextPathLen collect_list)
-        | Node3(n1, n2, c1, c2, c3) ->
-          List.append
-            (List.append
-              (_loop c1 nextPathLen collect_list)
-              (_loop c2 nextPathLen collect_list)
-            )
-            (_loop c3 nextPathLen collect_list) in
-  let collected = _loop tree 0 [] in
-  match collected with
-    | [] -> true
-    | head :: tail ->
-      let checkEqual n = n = head in
-        List.for_all checkEqual collected
+let rec invariant tree =
+  let check_left key tree = ((
+    match tree with
+      | Leaf -> ()
+      | Node2((k, _), l, r) ->
+        assert (key > k);
+      | Node3((k1, _), (k2, _), l, m, r) ->
+        assert (key > k1);
+        assert (key > k2);
+        assert (k2 > k1);
+  );invariant tree;) in
+  let check_right key tree = ((
+    match tree with
+      | Leaf -> ()
+      | Node2((k, _), l, r) ->
+        assert (key < k);
+      | Node3((k1, _), (k2, _), l, m, r) ->
+        assert (key < k1);
+        assert (key < k2);
+        assert (k2 > k1);
+  );invariant tree;) in
+  match tree with
+    | Leaf -> ()
+    | Node2((k, _), l, r) ->
+      check_left k l;
+      check_right k r;
+    | Node3((k1, _), (k2, _), l, m, r) ->
+      check_left k1 l;
+      check_right k1 m;
+      check_left k2 m;
+      check_right k2 r;
 
 end
 
+
+let from_int_list list =
+  let mapper tree v = Tree23.insert v v tree in
+    List.fold_left mapper Tree23.empty list
+
 let tree1 = Tree23.Node2((1, 1), Tree23.Leaf, Tree23.Leaf)
-let tree2 = Tree23.from_int_list [1;2;3;4;5;6;7;8;9;10]
+let tree2 = from_int_list [1;2;3;4;5;6;7;8;9;10]
 
-let checkBalanced tree prefix =
-  match Tree23.checkBalanced tree with
-    | true -> print_endline (prefix ^ " balanced")
-    | false -> print_endline (prefix ^ " not balanced")
-
-let main () =
-  checkBalanced Tree23.empty "empty";
-  checkBalanced tree1 "level1";;
-  checkBalanced tree2 "from_list";;
-
-main ();;
+let test () =
+  Tree23.invariant tree1;
+  Tree23.invariant tree2;;
