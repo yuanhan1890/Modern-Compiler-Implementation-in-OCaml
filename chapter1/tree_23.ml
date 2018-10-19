@@ -86,27 +86,18 @@ let rec delete key tree =
   t
 and delete_aux key tree =
   match tree with
-    | Leaf -> (Single, Leaf)
+    | Leaf -> (Done, Leaf)
     | Node2(n, l, r) ->
       let (k, _) = n in
       if key = k then
-        match r with
-          | Leaf -> (
-            match l with
-              | Leaf -> (Single, Leaf)
-              | Node2(nl, ll, lr) ->
-                let (prev, new_l) = find_prev_2 nl ll lr in
-                  collect_2_l prev new_l r
-              | Node3(nl1, nl2, ll, lm, lr) ->
-                let (prev, new_l) = find_prev_3 nl1 nl2 ll lm lr in
-                  collect_2_l prev new_l r
-          )
-          | Node2(nr, rl, rr) ->
-            let (prev, new_r) = find_prev_2 nr rl rr in
-              collect_2_r prev l new_r
-          | Node3(nr1, nr2, rl, rm, rr) ->
-            let (prev, new_r) = find_prev_3 nr1 nr2 rl rm rr in
-              collect_2_r prev l new_r
+        match l with
+          | Leaf -> (Single, Leaf)
+          | Node2(nl, ll, lr) ->
+            let (prev, new_l) = find_prev_2 nl ll lr in
+              collect_2_l prev new_l r
+          | Node3(nl1, nl2, ll, lm, lr) ->
+            let (prev, new_l) = find_prev_3 nl1 nl2 ll lm lr in
+              collect_2_l prev new_l r
       else if key < k then
         collect_2_l n (delete_aux key l) r
       else
@@ -121,10 +112,10 @@ and delete_aux key tree =
           | Leaf -> (Done, Node2(n2, Leaf, Leaf))
           | Node2(n1, l1, r1) ->
             let (n_, t_) = find_prev_2 n1 l1 r1 in
-              collect_3_l n_ n2 t_ m l
+              collect_3_l n_ n2 t_ m r
           | Node3(n1, n2, c1, c2, c3) ->
             let (n_, t_) = find_prev_3 n1 n2 c1 c2 c3 in
-              collect_3_l n_ n2 t_ m l
+              collect_3_l n_ n2 t_ m r
       else if key < k2 then
         collect_3_m n1 n2 l (delete_aux key m) r
       else if key = k2 then
@@ -146,16 +137,16 @@ and find_prev_2 n l r =
       (n_, collect_2_l n t_ r)
     | Node3(n1, n2, l1, m1, r1) ->
       let (n_, t_) = find_prev_3 n1 n2 l1 m1 r1 in
-      (n_, collect_3_l n_ n2 t_ m1 r1)
+      (n_, collect_2_l n t_ r)
 and find_prev_3 n1 n2 l m r =
   match l with
-    | Leaf -> (n1, (Single, Node2(n2, Leaf, Leaf)))
+    | Leaf -> (n1, (Done, Node2(n2, Leaf, Leaf)))
     | Node2(n1, l1, r1) ->
       let (n_, t_) = find_prev_2 n1 l1 r1 in
-      (n_, collect_3_l n_ n2 t_ m r)
+      (n_, collect_3_l n1 n2 t_ m r)
     | Node3(n1, n2, l1, m1, r1) ->
       let (n_, t_) = find_prev_3 n1 n2 l1 m1 r1 in
-      (n_, collect_3_l n_ n2 t_ m1 r1)
+      (n_, collect_3_l n1 n2 t_ m r)
 and collect_2_l n (up_case, l) r =
   match up_case with
     | Done -> (Done, Node2(n, l , r))
@@ -272,45 +263,25 @@ let member key tree =
 let rec invariant tree =
   let check_left key tree = ((
     match tree with
-      | Leaf -> ()
+      | Leaf -> true
       | Node2((k, _), l, r) ->
-        assert (key > k);
+         (key > k)
       | Node3((k1, _), (k2, _), l, m, r) ->
-        assert (key > k1);
-        assert (key > k2);
-        assert (k2 > k1);
-  );invariant tree;) in
+        (key > k1) && (key > k2) && (k2 > k1)
+  ) && invariant tree) in
   let check_right key tree = ((
     match tree with
-      | Leaf -> ()
+      | Leaf -> true
       | Node2((k, _), l, r) ->
-        assert (key < k);
+        (key < k)
       | Node3((k1, _), (k2, _), l, m, r) ->
-        assert (key < k1);
-        assert (key < k2);
-        assert (k2 > k1);
-  );invariant tree;) in
+        (key < k1) && (key < k2) && (k2 > k1)
+  ) && invariant tree) in
   match tree with
-    | Leaf -> ()
+    | Leaf -> true
     | Node2((k, _), l, r) ->
-      check_left k l;
-      check_right k r;
+      (check_left k l) && (check_right k r)
     | Node3((k1, _), (k2, _), l, m, r) ->
-      check_left k1 l;
-      check_right k1 m;
-      check_left k2 m;
-      check_right k2 r;
-
+      (check_left k1 l) && (check_right k1 m) && (check_left k2 m) && (check_right k2 r)
 end
 
-
-let from_int_list list =
-  let mapper tree v = Tree23.insert v v tree in
-    List.fold_left mapper Tree23.empty list
-
-let tree1 = Tree23.Node2((1, 1), Tree23.Leaf, Tree23.Leaf)
-let tree2 = from_int_list [1;2;3;4;5;6;7;8;9;10]
-
-let test () =
-  Tree23.invariant tree1;
-  Tree23.invariant tree2;;
