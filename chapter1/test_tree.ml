@@ -1,7 +1,18 @@
+module type Tree =
+sig
+type key = int
+type 'a tree
+val empty: 'a tree
+val insert: key -> 'a -> 'a tree -> 'a tree
+val delete: key -> 'a tree -> 'a tree
+val invariant: 'a tree -> bool
+end
+
 module TestTree =
+functor (Tree: Tree) ->
 struct
-let from_ints list f empty=
-  List.fold_left (fun tree i -> (f i i tree)) empty list
+let from_ints list=
+  List.fold_left (fun tree i -> (Tree.insert i i tree)) Tree.empty list
 
 let build_list_base n =
   let rec aux acc i =
@@ -30,10 +41,10 @@ let random_delete arr =
           | Some x -> x :: arr
       ) [] (List.mapi (fun index x -> if index = i then None else Some x) arr))
 
-let delete_tree arr tree delete =
-  List.fold_left (fun tree i -> delete i tree) tree arr
+let delete_tree arr tree =
+  List.fold_left (fun tree i -> Tree.delete i tree) tree arr
 
-let delete_test arr tree delete =
+let delete_test arr tree =
   let len = List.length arr in
   let delete_num = Random.int len in
   let rec delete_iter arr accum count =
@@ -44,36 +55,36 @@ let delete_test arr tree delete =
         delete_iter remain (select_idx :: accum) (count - 1)
   in
   let select_ids = delete_iter arr [] delete_num in
-  (select_ids, delete_tree select_ids tree delete)
+  (select_ids, delete_tree select_ids tree)
 
 
 type 'a suit_fail = Suc | Insert of 'a list | Delete of 'a list
 
-let build_suite lens invariant insert delete empty =
+let build_suite lens =
   List.map (fun i -> (
       (let arr = (build_list i false false) in
-      let t = (from_ints arr insert empty) in
-      let (ids, t_d) = (delete_test arr t delete) in
-        if false = (invariant t) then Insert arr
-        else if false = (invariant t_d) then Delete ids
+      let t = (from_ints arr) in
+      let (ids, t_d) = (delete_test arr t) in
+        if false = (Tree.invariant t) then Insert arr
+        else if false = (Tree.invariant t_d) then Delete ids
         else Suc),
       (let arr = (build_list i true false) in
-      let t = (from_ints arr insert empty) in
-      let (ids, t_d) = (delete_test arr t delete) in
-        if false = (invariant t) then Insert arr
-        else if false = (invariant t_d) then Delete ids
+      let t = (from_ints arr) in
+      let (ids, t_d) = (delete_test arr t) in
+        if false = (Tree.invariant t) then Insert arr
+        else if false = (Tree.invariant t_d) then Delete ids
         else Suc),
       (let arr = (build_list i false true) in
-      let t = (from_ints arr insert empty) in
-      let (ids, t_d) = (delete_test arr t delete) in
-        if false = (invariant t) then Insert arr
-        else if false = (invariant t_d) then Delete ids
+      let t = (from_ints arr) in
+      let (ids, t_d) = (delete_test arr t) in
+        if false = (Tree.invariant t) then Insert arr
+        else if false = (Tree.invariant t_d) then Delete ids
         else Suc),
       let arr = (build_list i true true) in
-      let t = (from_ints arr insert empty) in
-      let (ids, t_d) = (delete_test arr t delete) in
-        if false = (invariant t) then Insert arr
-        else if false = (invariant t_d) then Delete ids
+      let t = (from_ints arr) in
+      let (ids, t_d) = (delete_test arr t) in
+        if false = (Tree.invariant t) then Insert arr
+        else if false = (Tree.invariant t_d) then Delete ids
         else Suc
     )) lens
 end
