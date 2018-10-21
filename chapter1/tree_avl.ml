@@ -1,10 +1,7 @@
 let max x y = if x < y then y else x
-
-module TreeAvl =
-struct
 type key = int
 type 'a node = key * 'a
-type height = int
+
 type 'a tree =
   | Leaf
   | Node of 'a node * 'a tree * 'a tree
@@ -12,7 +9,7 @@ type 'a tree =
 let rec get_height tree =
   match tree with
   | Leaf -> 0
-  | Node(n, l, r) -> 1 + (max (get_height l) (get_height r))
+  | Node(_, l, r) -> 1 + (max (get_height l) (get_height r))
 
 let rec insert key value tree =
   let (n, l, r) = insert_child key value tree in
@@ -116,9 +113,9 @@ and insert_child key value tree =
 
       )
 
-let empty = Leaf
+let delete _ tree = tree
 
-let invariant arr tree =
+let invariant tree =
   let max i j = if i > j then i else j in
   let legal_left_key key = function
     | Leaf -> true
@@ -156,44 +153,6 @@ let invariant arr tree =
       else
         true
   in
-    if inv tree then None else Some arr
-end
+    if inv tree then true else false
 
-let from_ints list =
-  List.fold_left (fun tree i -> (TreeAvl.insert i i tree)) TreeAvl.empty list
-
-let build_list_base n =
-  let rec aux acc i =
-    if i <= n then
-      aux (i::acc) (i+1)
-    else (List.rev acc)
-  in
-  aux [] 1
-
-let ran_sorted x y = if (Random.float 1.0) < 0.5 then 1 else (-1)
-
-let build_list len random reversed =
-  let arr = build_list_base len in
-    if random then
-      List.sort ran_sorted arr
-    else if reversed then
-      List.rev arr
-    else
-      arr
-
-let build_suite lens =
-  List.map (fun i -> (
-      let arr = (build_list i false false) in
-        (TreeAvl.invariant arr (from_ints arr)),
-      let arr = (build_list i true false) in
-        (TreeAvl.invariant arr (from_ints arr)),
-      let arr = (build_list i false true) in
-        (TreeAvl.invariant arr (from_ints arr)),
-      let arr = (build_list i true true) in
-        (TreeAvl.invariant arr (from_ints arr))
-    )) lens
-
-let test arr =
-  TreeAvl.invariant arr (from_ints arr);
-(* build_suite [100]; *)
-(* (from_ints [7; 8; 6; 9; 45; 50; 48; 12; 74; 64; 65; ]) *)
+let empty = Leaf

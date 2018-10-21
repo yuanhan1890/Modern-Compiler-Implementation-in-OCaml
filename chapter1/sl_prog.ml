@@ -61,9 +61,9 @@ let maxInts a b =
 let rec maxargs (prog: stm) =
   match prog with
     | CompoundStm(stmA, stmB) -> maxInts (maxargs stmA) (maxargs stmB)
-    | AssignStm(id, exp) -> (
+    | AssignStm(_, exp) -> (
       match exp with
-        | EseqExp(stm, exp) -> maxargs stm
+        | EseqExp(stm, _) -> maxargs stm
         | _ -> 0
       )
     | PrintStm(expList) -> List.length expList
