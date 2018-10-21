@@ -11,7 +11,7 @@ end
 module TestTree =
 functor (Tree: Tree) ->
 struct
-let from_ints list=
+let from_ints list =
   List.fold_left (fun tree i -> (Tree.insert i i tree)) Tree.empty list
 
 let build_list_base n =
@@ -58,7 +58,7 @@ let delete_test arr tree =
   (select_ids, delete_tree select_ids tree)
 
 
-type 'a suit_fail = Suc | Insert of 'a list | Delete of 'a list
+type 'a suit_fail = Suc | Insert of 'a list | Delete of 'a list * 'a list
 
 let build_suite lens =
   List.map (fun i -> (
@@ -66,25 +66,25 @@ let build_suite lens =
       let t = (from_ints arr) in
       let (ids, t_d) = (delete_test arr t) in
         if false = (Tree.invariant t) then Insert arr
-        else if false = (Tree.invariant t_d) then Delete ids
+        else if false = (Tree.invariant t_d) then Delete(arr, ids)
         else Suc),
       (let arr = (build_list i true false) in
       let t = (from_ints arr) in
       let (ids, t_d) = (delete_test arr t) in
         if false = (Tree.invariant t) then Insert arr
-        else if false = (Tree.invariant t_d) then Delete ids
+        else if false = (Tree.invariant t_d) then Delete(arr, ids)
         else Suc),
       (let arr = (build_list i false true) in
       let t = (from_ints arr) in
       let (ids, t_d) = (delete_test arr t) in
         if false = (Tree.invariant t) then Insert arr
-        else if false = (Tree.invariant t_d) then Delete ids
+        else if false = (Tree.invariant t_d) then Delete(arr, ids)
         else Suc),
       let arr = (build_list i true true) in
       let t = (from_ints arr) in
       let (ids, t_d) = (delete_test arr t) in
         if false = (Tree.invariant t) then Insert arr
-        else if false = (Tree.invariant t_d) then Delete ids
+        else if false = (Tree.invariant t_d) then Delete(arr, ids)
         else Suc
     )) lens
 end
